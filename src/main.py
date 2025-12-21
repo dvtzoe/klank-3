@@ -3,6 +3,7 @@ import signal
 
 from llm import LLMClient
 from stt import STTClient
+from tts import TTSClient
 
 shutdown_event = asyncio.Event()
 
@@ -32,6 +33,7 @@ async def main():
         loop=loop,
         audio_queue=audio_queue,  # pyright: ignore[reportUnknownArgumentType]
     )
+    tts_client = TTSClient()
 
     async def c(transcript: str):
         print("Transcription:", transcript)
@@ -39,6 +41,8 @@ async def main():
             {"role": "user", "content": transcript}
         )
         print("LLM Response:", response)
+        if response:
+            await tts_client.create_and_read(response)
 
     try:
         await stt_client.start_listening(

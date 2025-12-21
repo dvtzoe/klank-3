@@ -10,6 +10,7 @@ dependencies = [
     "openai>=2.14.0",
     "setuptools>=80.9.0",
     "sounddevice>=0.5.3",
+    "soundfile>=0.13.1",
     "webrtcvad>=2.0.10",
 ]
 
