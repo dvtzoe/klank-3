@@ -19,7 +19,7 @@ class LLMClient:
                 "API key not found. Please set OPENROUTER_API_KEY in your environment variables."
             )
 
-        self.openrouter: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.openai: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self.chat_log: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
@@ -29,7 +29,7 @@ class LLMClient:
     ) -> str | None:
         self.chat_log.append(user_message)
 
-        response = await self.openrouter.chat.completions.create(
+        response = await self.openai.chat.completions.create(
             model=MODEL,
             messages=self.chat_log,
         )

@@ -29,7 +29,7 @@ class STTClient:
         load_dotenv()
         base_url = os.getenv("OPENAI_STT_BASE_URL", "http://localhost:8000/v1")
         api_key = os.getenv("OPENAI_STT_API_KEY")
-        self.speaches: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.openai: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
         self.callback: Callable[[str], Any] | None = None
         self.buffer: list[bytes] = []
@@ -40,6 +40,7 @@ class STTClient:
         self.shutdown_event: asyncio.Event = shutdown_event
         self.loop: asyncio.AbstractEventLoop = loop
         self.audio_queue: asyncio.Queue[bytes] = audio_queue
+
         asyncio.create_task(self._audio_worker())
 
     async def start_listening(
@@ -86,7 +87,7 @@ class STTClient:
                 wf.writeframes(audio_pcm)
             wav_bytes = buffer.getvalue()
 
-            result = await self.speaches.audio.transcriptions.create(
+            result = await self.openai.audio.transcriptions.create(
                 model=MODEL,
                 file=wav_bytes,
             )
