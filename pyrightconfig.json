@@ -1,4 +1,10 @@
 {
   "venvPath": ".",
-  "venv": ".venv"
+  "venv": ".venv",
+  "reportUnusedCallResult": false,
+  "reportExplicitAny": false,
+  "reportAny": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportMissingTypeStubs": false
 }

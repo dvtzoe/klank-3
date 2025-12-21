@@ -1,51 +1,60 @@
 import asyncio
-import os
+import signal
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from llm import LLMClient
+from stt import STTClient
 
-SYSTEM_PROMPT = """You are a helpful assistant."""
-MODEL = "google/gemini-2.0-flash-001"
+shutdown_event = asyncio.Event()
+
+
+def setup_signal_handlers(loop: asyncio.AbstractEventLoop):
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, shutdown_event.set)
+
+
+async def cleanup():
+    pending = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+
+    for task in pending:
+        task.cancel()
+
+    await asyncio.gather(*pending, return_exceptions=True)
 
 
 async def main():
-    _ = load_dotenv()
+    loop = asyncio.get_running_loop()
+    audio_queue = asyncio.Queue()
+    setup_signal_handlers(loop)
 
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    llm_client = LLMClient()
+    stt_client = STTClient(
+        shutdown_event=shutdown_event,
+        loop=loop,
+        audio_queue=audio_queue,  # pyright: ignore[reportUnknownArgumentType]
+    )
 
-    if not api_key:
-        raise ValueError(
-            "API key not found. Please set OPENROUTER_API_KEY in your environment variables."
+    async def c(transcript: str):
+        print("Transcription:", transcript)
+        response = await llm_client.get_response(
+            {"role": "user", "content": transcript}
         )
+        print("LLM Response:", response)
 
-    openai = AsyncOpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
-
-    chat_log: list[ChatCompletionMessageParam] = [
-        {"role": "system", "content": SYSTEM_PROMPT}
-    ]
-
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() in ["exit", "quit"]:
-            print("Goodbye!")
-            break
-
-        user_message: ChatCompletionMessageParam = {
-            "role": "user",
-            "content": user_input,
-        }
-
-        chat_log.append(user_message)
-
-        response = await openai.chat.completions.create(
-            model=MODEL,
-            messages=chat_log,
+    try:
+        await stt_client.start_listening(
+            callback=c,
         )
+    except KeyboardInterrupt:
+        pass
 
-        bot_reply = response.choices[0].message.content
-        print(f"Bot: {bot_reply}")
+    finally:
+        shutdown_event.set()
+        await cleanup()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+
+    except KeyboardInterrupt:
+        print("Exiting...")

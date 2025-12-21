@@ -4,7 +4,14 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["dotenv>=0.9.9", "openai>=2.14.0"]
+dependencies = [
+    "dotenv>=0.9.9",
+    "numpy>=2.3.5",
+    "openai>=2.14.0",
+    "setuptools>=80.9.0",
+    "sounddevice>=0.5.3",
+    "webrtcvad>=2.0.10",
+]
 
 [dependency-groups]
 dev = [
