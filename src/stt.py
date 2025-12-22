@@ -63,6 +63,11 @@ class STTClient:
         ):
             await self.shutdown_event.wait()
 
+    def _reset_wake_word_state(self):
+        """Reset wake word detection state after processing a command."""
+        self.wake_word_detected = False
+        self.wake_word_detector.reset()
+
     def _input_stream_callback(self, indata: np.ndarray, _f: int, _t: Any, _s: Any):
         pcm = (indata[:, 0] * 32768).astype(np.int16).tobytes()
 
@@ -98,8 +103,7 @@ class STTClient:
                     self.buffer = []
                     self.speaking = False
                     self.silence_ms = 0
-                    self.wake_word_detected = False  # Reset for next wake word
-                    self.wake_word_detector.reset()
+                    self._reset_wake_word_state()
 
                     self.loop.call_soon_threadsafe(self.audio_queue.put_nowait, audio)
 

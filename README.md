@@ -15,6 +15,7 @@ Klank 3 now includes wake word detection using OpenWakeWord. The bot listens con
 - `hey_jarvis`
 - `hey_mycroft`
 - `timer`
+- `weather`
 
 All wake words are loaded by default. Say any of them to activate the bot.
 

@@ -13,7 +13,7 @@ class WakeWordDetector:
         load_dotenv()
 
         # Initialize the wake word detection model
-        # By default, loads all pre-trained models (alexa, hey_jarvis, hey_mycroft, timer)
+        # By default, loads all pre-trained models (alexa, hey_jarvis, hey_mycroft, timer, weather)
         # You can optionally specify wakeword_model_paths to load specific models
         self.model = Model()
         self.detection_threshold = float(os.getenv("WAKE_WORD_THRESHOLD", "0.5"))
