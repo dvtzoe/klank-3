@@ -37,7 +37,7 @@ class STTClient:
         self.silence_ms: int = 0
         
         # Load Silero VAD model
-        self.vad_model, utils = torch.hub.load(
+        self.vad_model, _ = torch.hub.load(
             repo_or_dir="snakers4/silero-vad",
             model="silero_vad",
             force_reload=False,
