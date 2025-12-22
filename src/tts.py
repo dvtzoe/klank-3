@@ -26,9 +26,10 @@ class TTSClient:
             response_format="wav",
             speed=1.0,
         )
+        audio_data = response.response.read()
         with open("output.wav", "wb") as f:
-            f.write(response.response.read())
-        return response.response.read()
+            f.write(audio_data)
+        return audio_data
 
     async def create_and_read(self, text: str, voice: str = VOICE):
         audio_data = await self.create(text, voice)
