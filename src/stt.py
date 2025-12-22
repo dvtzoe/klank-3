@@ -15,6 +15,8 @@ SAMPLE_RATE = 16000
 FRAME_DURATION_MS = 30
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION_MS / 1000)
 SILENCE_TIMEOUT_MS = 800
+# Silero VAD requires at least 512 samples (32ms at 16kHz)
+MIN_VAD_SAMPLES = 512
 
 MODEL = "Systran/faster-distil-whisper-large-v3"
 
@@ -35,6 +37,10 @@ class STTClient:
         self.buffer: list[bytes] = []
         self.speaking: bool = False
         self.silence_ms: int = 0
+        
+        # Buffer for accumulating audio chunks for VAD
+        self.vad_buffer: list[np.ndarray] = []
+        self.vad_buffer_size: int = 0
         
         # Load Silero VAD model
         self.vad_model, _ = torch.hub.load(
@@ -87,14 +93,28 @@ class STTClient:
         
         # Normalize to float32 for Silero VAD (expected range: -1 to 1)
         audio_float32 = pcm.astype(np.float32) / 32768.0
-        audio_tensor = torch.from_numpy(audio_float32)
         
-        # Get speech probability from Silero VAD
-        with torch.no_grad():
-            speech_prob = self.vad_model(audio_tensor, SAMPLE_RATE).item()
+        # Accumulate audio for VAD
+        self.vad_buffer.append(audio_float32)
+        self.vad_buffer_size += len(audio_float32)
         
-        # Consider speech if probability > 0.5
-        is_speech = speech_prob > 0.5
+        # Only run VAD when we have enough samples
+        is_speech = False
+        if self.vad_buffer_size >= MIN_VAD_SAMPLES:
+            # Concatenate accumulated audio
+            audio_chunk = np.concatenate(self.vad_buffer)
+            audio_tensor = torch.from_numpy(audio_chunk)
+            
+            # Get speech probability from Silero VAD
+            with torch.no_grad():
+                speech_prob = self.vad_model(audio_tensor, SAMPLE_RATE).item()
+            
+            # Consider speech if probability > 0.5
+            is_speech = speech_prob > 0.5
+            
+            # Reset VAD buffer
+            self.vad_buffer = []
+            self.vad_buffer_size = 0
 
         if is_speech:
             self.speaking = True
