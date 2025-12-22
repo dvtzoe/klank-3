@@ -1,7 +1,7 @@
 import io
 import os
 
-import sounddevice as sd
+import pyaudio
 import soundfile as sf
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -16,6 +16,7 @@ class TTSClient:
         base_url = os.getenv("OPENAI_TTS_BASE_URL", "http://localhost:8000/v1")
         api_key = os.getenv("OPENAI_TTS_API_KEY")
         self.openai: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.pyaudio = pyaudio.PyAudio()
 
     async def create(self, text: str, voice: str = "default") -> bytes:
         response = await self.openai.audio.speech.create(
@@ -32,4 +33,25 @@ class TTSClient:
     async def create_and_read(self, text: str, voice: str = VOICE):
         audio_data = await self.create(text, voice)
         data, samplerate = sf.read(io.BytesIO(audio_data))
-        sd.play(data, samplerate)
+        
+        # Convert to the appropriate format for PyAudio
+        if len(data.shape) == 1:
+            # Mono audio
+            audio_data_int16 = (data * 32767).astype('int16')
+            channels = 1
+        else:
+            # Stereo audio
+            audio_data_int16 = (data * 32767).astype('int16')
+            channels = data.shape[1]
+        
+        # Open stream and play
+        stream = self.pyaudio.open(
+            format=pyaudio.paInt16,
+            channels=channels,
+            rate=samplerate,
+            output=True,
+        )
+        
+        stream.write(audio_data_int16.tobytes())
+        stream.stop_stream()
+        stream.close()

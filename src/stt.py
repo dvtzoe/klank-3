@@ -6,8 +6,8 @@ import wave
 from typing import Any, Callable
 
 import numpy as np
-import sounddevice as sd
-import webrtcvad
+import pyaudio
+import torch
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
@@ -35,11 +35,24 @@ class STTClient:
         self.buffer: list[bytes] = []
         self.speaking: bool = False
         self.silence_ms: int = 0
-        self.vad: webrtcvad.Vad = webrtcvad.Vad(2)
+        
+        # Load Silero VAD model
+        self.vad_model, utils = torch.hub.load(
+            repo_or_dir="snakers4/silero-vad",
+            model="silero_vad",
+            force_reload=False,
+            onnx=False,
+        )
+        self.vad_model.eval()
 
         self.shutdown_event: asyncio.Event = shutdown_event
         self.loop: asyncio.AbstractEventLoop = loop
         self.audio_queue: asyncio.Queue[bytes] = audio_queue
+        
+        # Initialize PyAudio
+        self.pyaudio = pyaudio.PyAudio()
+        self.stream = None
+        
         asyncio.create_task(self._audio_worker())
 
     async def start_listening(
@@ -48,25 +61,48 @@ class STTClient:
     ):
         self.callback = callback
 
-        with sd.InputStream(
+        # Open PyAudio stream
+        self.stream = self.pyaudio.open(
+            format=pyaudio.paInt16,
             channels=1,
-            samplerate=SAMPLE_RATE,
-            blocksize=FRAME_SIZE,
-            callback=self._input_stream_callback,
-        ):
+            rate=SAMPLE_RATE,
+            input=True,
+            frames_per_buffer=FRAME_SIZE,
+            stream_callback=self._input_stream_callback,
+        )
+        
+        self.stream.start_stream()
+        
+        try:
             await self.shutdown_event.wait()
+        finally:
+            if self.stream:
+                self.stream.stop_stream()
+                self.stream.close()
+            self.pyaudio.terminate()
 
-    def _input_stream_callback(self, indata: np.ndarray, _f: int, _t: Any, _s: Any):
-        pcm = (indata[:, 0] * 32768).astype(np.int16).tobytes()
-        is_speech: Any = self.vad.is_speech(pcm, SAMPLE_RATE)
+    def _input_stream_callback(self, in_data: bytes, frame_count: int, time_info: dict, status: int):
+        # Convert bytes to int16 numpy array
+        pcm = np.frombuffer(in_data, dtype=np.int16)
+        
+        # Normalize to float32 for Silero VAD (expected range: -1 to 1)
+        audio_float32 = pcm.astype(np.float32) / 32768.0
+        audio_tensor = torch.from_numpy(audio_float32)
+        
+        # Get speech probability from Silero VAD
+        with torch.no_grad():
+            speech_prob = self.vad_model(audio_tensor, SAMPLE_RATE).item()
+        
+        # Consider speech if probability > 0.5
+        is_speech = speech_prob > 0.5
 
         if is_speech:
             self.speaking = True
             self.silence_ms = 0
-            self.buffer.append(pcm)
+            self.buffer.append(in_data)
         elif self.speaking:
             self.silence_ms += FRAME_DURATION_MS
-            self.buffer.append(pcm)
+            self.buffer.append(in_data)
 
             if self.silence_ms >= SILENCE_TIMEOUT_MS:
                 audio = b"".join(self.buffer)
@@ -75,6 +111,8 @@ class STTClient:
                 self.silence_ms = 0
 
                 self.loop.call_soon_threadsafe(self.audio_queue.put_nowait, audio)
+        
+        return (None, pyaudio.paContinue)
 
     async def _process(self, audio_pcm: bytes):
         try:
