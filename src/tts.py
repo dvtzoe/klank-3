@@ -17,6 +17,10 @@ class TTSClient:
         api_key = os.getenv("OPENAI_TTS_API_KEY")
         self.openai: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self.pyaudio = pyaudio.PyAudio()
+    
+    def __del__(self):
+        if hasattr(self, 'pyaudio'):
+            self.pyaudio.terminate()
 
     async def create(self, text: str, voice: str = "default") -> bytes:
         response = await self.openai.audio.speech.create(
@@ -38,11 +42,11 @@ class TTSClient:
         # Convert to the appropriate format for PyAudio
         if len(data.shape) == 1:
             # Mono audio
-            audio_data_int16 = (data * 32767).astype('int16')
+            audio_data_int16 = (data * 32768.0).astype('int16')
             channels = 1
         else:
             # Stereo audio
-            audio_data_int16 = (data * 32767).astype('int16')
+            audio_data_int16 = (data * 32768.0).astype('int16')
             channels = data.shape[1]
         
         # Open stream and play
