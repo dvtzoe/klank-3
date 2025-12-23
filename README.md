@@ -6,6 +6,18 @@
 
 uses OpenAI-compatible api for llm and stt
 
+## Installation
+
+1. Install dependencies:
+   ```bash
+   pip install -e .
+   ```
+
+2. Install PortAudio (required for PyAudio):
+   - **Ubuntu/Debian:** `sudo apt-get install portaudio19-dev`
+   - **macOS:** `brew install portaudio`
+   - **Windows:** Usually included with PyAudio wheel
+
 ## Training Personal Wakeword Models
 
 Klank 3 supports training personalized wakeword models using your own voice recordings. This allows you to create a custom wake word that responds specifically to your voice.

@@ -159,17 +159,25 @@ class AudioListenerWithCustomModel:
                         if score > WAKEWORD_THRESHOLD:
                             # Get features for custom verification
                             if self.use_custom_verifier:
-                                # Extract features from the model for verification
-                                features = self.wakeword.preprocessor.get_features(  # pyright: ignore[reportAttributeAccessIssue]
-                                    self.wakeword.model_inputs[name]  # pyright: ignore[reportAttributeAccessIssue]
-                                )
-
-                                # Verify with custom model
-                                if not self.verify_with_custom_model(features, name):
-                                    print(
-                                        f"Wake word detected ({name}) but rejected by custom verifier"
+                                try:
+                                    # Extract features from the model for verification
+                                    # Note: This uses internal API of openwakeword which may change
+                                    # This is the same approach used by train_custom_verifier()
+                                    features = self.wakeword.preprocessor.get_features(  # pyright: ignore[reportAttributeAccessIssue]
+                                        self.wakeword.model_inputs[name]  # pyright: ignore[reportAttributeAccessIssue]
                                     )
-                                    continue
+
+                                    # Verify with custom model
+                                    if not self.verify_with_custom_model(features, name):
+                                        print(
+                                            f"Wake word detected ({name}) but rejected by custom verifier"
+                                        )
+                                        continue
+                                except (AttributeError, KeyError) as e:
+                                    print(
+                                        f"Warning: Could not extract features for verification: {e}"
+                                    )
+                                    # Fall through to accept the detection
 
                             print(f"Wake word detected and verified ({name})")
                             self.is_listening = True
