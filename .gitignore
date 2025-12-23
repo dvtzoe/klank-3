@@ -12,3 +12,9 @@ wheels/
 # env files
 .env*
 !.env.example
+
+# Training data and models
+training_data/
+custom_models/
+*.joblib
+*.wav
