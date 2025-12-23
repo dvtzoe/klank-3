@@ -8,6 +8,10 @@ After training your custom model with:
     python scripts/train_wakeword.py --output custom_models/my_wakeword.joblib
 
 You can integrate it into the AudioListener as shown below.
+
+NOTE: This example uses internal APIs of openwakeword (preprocessor.get_features
+and model_inputs) which were tested with openwakeword>=0.4.0. If you encounter
+errors with different versions, you may need to adjust the feature extraction code.
 """
 
 import asyncio

@@ -24,7 +24,8 @@ from openwakeword import train_custom_verifier
 # Audio settings
 SAMPLE_RATE = 16000
 # Maximum value for 16-bit signed integer audio samples
-INT16_MAX = 32768
+# Range: -32768 to 32767, using 32768.0 as scaling factor for normalization
+INT16_SCALE = 32768.0
 
 
 def download_negative_samples(
@@ -104,7 +105,8 @@ def augment_positive_samples(
                 suffix = "orig"
             else:
                 # Add Gaussian noise
-                noise = np.random.normal(0, noise_level * INT16_MAX, len(audio_data))
+                # Scale noise by INT16_SCALE to match audio amplitude range
+                noise = np.random.normal(0, noise_level * INT16_SCALE, len(audio_data))
                 augmented = (audio_data + noise).astype(np.int16)
                 suffix = f"noise{int(noise_level * 100):02d}"
 
