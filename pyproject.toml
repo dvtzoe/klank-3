@@ -1,17 +1,18 @@
 [project]
 name = "klank-3"
 version = "0.1.0"
-description = "Add your description here"
+description = "klank klank klank"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "dotenv>=0.9.9",
     "numpy>=2.3.5",
     "openai>=2.14.0",
-    "setuptools>=80.9.0",
-    "sounddevice>=0.5.3",
-    "soundfile>=0.13.1",
-    "webrtcvad>=2.0.10",
+    "openwakeword>=0.4.0",
+    "packaging>=25.0",
+    "pyaudio>=0.2.14",
+    "torch>=2.9.1",
+    "torchaudio>=2.9.1",
 ]
 
 [dependency-groups]

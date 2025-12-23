@@ -1,6 +1,8 @@
 import asyncio
 import signal
+from typing import Any
 
+from audio_listener import AudioListener
 from llm import LLMClient
 from stt import STTClient
 from tts import TTSClient
@@ -24,18 +26,16 @@ async def cleanup():
 
 async def main():
     loop = asyncio.get_running_loop()
-    audio_queue = asyncio.Queue()
     setup_signal_handlers(loop)
 
     llm_client = LLMClient()
-    stt_client = STTClient(
-        shutdown_event=shutdown_event,
-        loop=loop,
-        audio_queue=audio_queue,  # pyright: ignore[reportUnknownArgumentType]
-    )
+    stt_client = STTClient()
     tts_client = TTSClient()
+    audio_listener = AudioListener()
 
-    async def c(transcript: str):
+    async def c(audio_data: Any):
+        print("Received audio data, sending to STT...")
+        transcript = await stt_client.transcribe_audio(audio_data)
         print("Transcription:", transcript)
         response = await llm_client.get_response(
             {"role": "user", "content": transcript}
@@ -45,11 +45,9 @@ async def main():
             await tts_client.create_and_read(response)
 
     try:
-        await stt_client.start_listening(
-            callback=c,
-        )
+        await audio_listener.listen(c, shutdown_event)
     except KeyboardInterrupt:
-        pass
+        print("Exiting...")
 
     finally:
         shutdown_event.set()
@@ -57,8 +55,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-
-    except KeyboardInterrupt:
-        print("Exiting...")
+    asyncio.run(main())
